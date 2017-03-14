@@ -17,15 +17,15 @@
 
 class pin {
 public:
-    pin(int pin, unsigned int Dir){
-        if (Dir==0){
-            GlobalCoreDirection &= ~(1 << pin);
+    pin(int pin, unsigned int Dir) : zero(0) {
+        pinSelect = 1 << pin;
+        if (Dir == 0) {
+            GlobalCoreDirection &= ~(pinSelect);
             _Dir = 0;
-        } else{
-            GlobalCoreDirection |= 1 << pin;
+        } else {
+            GlobalCoreDirection |= pinSelect;
             _Dir = 1;
         }
-
     }
 
     /*
@@ -34,17 +34,49 @@ public:
      * All below functions take uint8_t input and return nothing
      */
 
-    void togglePin() {
-        GlobalCoreOutput ^= 1 << pinNumber;
+
+
+    /**
+     *
+     * @return toggled to state on direction correct -1 on wrong
+     */
+    int togglePin() {
+        if ((GlobalCoreDirection & pinSelect) != zero) {
+            GlobalCoreOutput ^= pinSelect;
+            return GlobalCoreOutput >> pinNumber;
+        } else {
+            return -1;
+        }
     }
 
-    void setPin() {
-        GlobalCoreOutput |= 1 << pinNumber;
+
+    /**
+     *
+     * @return 1 on direction correct -1 on wrong
+     */
+    int setPin() {
+        if ((GlobalCoreDirection & pinSelect) != zero) {
+            GlobalCoreOutput |= pinSelect;
+            return 1;
+        } else {
+            return -1;
+        }
     }
 
-    void clearPin() {
-        GlobalCoreOutput &= ~(1 << pinNumber);
+
+    /**
+     *
+     * @return 0 on direction correct -1 on wrong
+     */
+    int clearPin() {
+        if ((GlobalCoreDirection & pinSelect) != zero) {
+            GlobalCoreOutput &= ~(pinSelect);
+            return 0;
+        } else {
+            return -1;
+        }
     }
+
 
     /**
      * @brief       This function value pin value.
@@ -55,12 +87,45 @@ public:
      *              then that value is shifted by "pin" times
      *              result is int 1 or 0  or -1 if not input.
      */
-    int readPin(uint_fast8_t pin) {
-        if ((GlobalCoreDirection && 1 << pin) != 1 << pin) { return -1; }
-        return (GlobalCoreRead && (1 << pin)) >> pin;
+    int readPin() {
+        if ((GlobalCoreDirection && pinSelect) == zero) {
+            return (GlobalCoreRead && (pinSelect)) >> pinNumber;
+        } else {
+            return -1;
+        }
+    }
+
+    //these functions are slower than using the direct assembly mapped function
+    int waitForChange() {
+        if ((GlobalCoreDirection && pinSelect) == zero) {
+            waitpne(readPin() << pinNumber, pinSelect);
+            return readPin();
+        } else {
+            return -1;
+        }
+    }
+
+    int waitEqual(unsigned int value) {
+        if ((GlobalCoreDirection && pinSelect) == zero) {
+            waitpeq(value << pinNumber, pinSelect);
+            return readPin();
+        } else {
+            return -1;
+        }
+    }
+
+    int waitNotEqual(unsigned int value) {
+        if ((GlobalCoreDirection && pinSelect) == zero) {
+            waitpne(value << pinNumber, pinSelect);
+            return readPin();
+        } else {
+            return -1;
+        }
     }
 
 private:
+    unsigned int zero;
+    int pinSelect;
     uint_fast8_t pinNumber;
     bool _Dir;
 
@@ -70,16 +135,23 @@ public:
         return pinNumber;
     }
 
-    bool getDirection() const {
+    bool getDirection() {
+        //simple getter, with verification
+        return _Dir = GlobalCoreDirection >> pinNumber;
+    }
+
+    //for use when direction is out
+    bool getValue() {
         //simple getter
-        return _Dir;
+        return _Dir = GlobalCoreOutput >> pinNumber;
     }
 
-    void flipDirection(){
+    bool flipDirection() {
         //xor pin
-        GlobalCoreDirection ^= 1 << pinNumber;
+        GlobalCoreDirection ^= pinSelect;
+        return getDirection();
     }
-
+/*
     bool operator==(const pin &rhs) const {
         return _Dir == rhs._Dir;
     }
@@ -87,6 +159,7 @@ public:
     bool operator!=(const pin &rhs) const {
         return !(rhs == *this);
     }
+*/
 };
 
 
