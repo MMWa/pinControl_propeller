@@ -27,13 +27,11 @@ public:
             _Dir = 1;
         }
     }
-
     /*
      * toggle, set and clear
      *
      * All below functions take uint8_t input and return nothing
      */
-
 
 
     /**
